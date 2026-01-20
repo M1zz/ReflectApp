@@ -1,423 +1,536 @@
 import SwiftUI
 import SwiftData
 
-struct HistoryView: View {
+// MARK: - History List View (전체 기록 목록)
+struct HistoryListView: View {
+    @Binding var selectedEntry: BottleneckEntry?
+
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Reflection.date, order: .reverse) private var reflections: [Reflection]
-    
-    @State private var selectedReflection: Reflection?
-    @State private var searchText: String = ""
-    @State private var selectedMonth: Date = Date()
-    
-    private var filteredReflections: [Reflection] {
-        let calendar = Calendar.current
-        return reflections.filter { reflection in
-            let sameMonth = calendar.isDate(reflection.date, equalTo: selectedMonth, toGranularity: .month)
-            let matchesSearch = searchText.isEmpty || 
-                reflection.wentWell.localizedCaseInsensitiveContains(searchText) ||
-                reflection.couldImprove.localizedCaseInsensitiveContains(searchText) ||
-                reflection.nextAction.localizedCaseInsensitiveContains(searchText) ||
-                reflection.learnings.localizedCaseInsensitiveContains(searchText)
-            return sameMonth && matchesSearch
-        }
+    @Query(sort: \BottleneckEntry.createdAt, order: .reverse) private var entries: [BottleneckEntry]
+    @Query(sort: \DailyRetrospective.date, order: .reverse) private var retrospectives: [DailyRetrospective]
+
+    @State private var selectedTab: HistoryTab = .bottleneck
+    @State private var searchText = ""
+    @State private var selectedTag: String?
+    @State private var sortOption: SortOption = .date
+    @State private var filterScore: Int?
+
+    enum HistoryTab: String, CaseIterable {
+        case bottleneck = "병목 기록"
+        case retrospective = "5분 회고"
     }
-    
+
+    enum SortOption: String, CaseIterable {
+        case date = "날짜순"
+        case roi = "ROI순"
+        case wasted = "낭비시간순"
+        case frequency = "빈도순"
+    }
+
+    private var filteredEntries: [BottleneckEntry] {
+        var result = entries
+
+        // 검색어 필터
+        if !searchText.isEmpty {
+            result = result.filter {
+                $0.taskName.localizedCaseInsensitiveContains(searchText) ||
+                $0.delayReason.localizedCaseInsensitiveContains(searchText) ||
+                $0.notes.localizedCaseInsensitiveContains(searchText) ||
+                $0.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            }
+        }
+
+        // 태그 필터
+        if let tag = selectedTag {
+            result = result.filter { $0.tags.contains(tag) }
+        }
+
+        // 점수 필터
+        if let score = filterScore {
+            result = result.filter { $0.automationScore >= score }
+        }
+
+        // 정렬
+        switch sortOption {
+        case .date:
+            break // 이미 날짜순 정렬됨
+        case .roi:
+            result.sort { $0.roiScore > $1.roiScore }
+        case .wasted:
+            result.sort { $0.weeklyWastedMinutes > $1.weeklyWastedMinutes }
+        case .frequency:
+            result.sort { $0.weeklyFrequency > $1.weeklyFrequency }
+        }
+
+        return result
+    }
+
+    private var allTags: [String] {
+        Array(Set(entries.flatMap { $0.tags })).sorted()
+    }
+
+    private var totalWastedMinutes: Int {
+        filteredEntries.reduce(0) { $0 + $1.weeklyWastedMinutes }
+    }
+
     var body: some View {
-        HStack(spacing: 0) {
-            // Left: Calendar & List
-            VStack(spacing: 0) {
-                // Month Navigator
-                monthNavigator
-                
-                // Calendar Grid
-                calendarGrid
-                
-                Divider()
-                    .background(Color.white.opacity(0.1))
-                
-                // Search
-                searchBar
-                
-                // Reflection List
-                reflectionList
+        VStack(spacing: 0) {
+            // 탭 선택
+            Picker("", selection: $selectedTab) {
+                ForEach(HistoryTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
             }
-            .frame(width: 340)
-            .background(Color.white.opacity(0.02))
-            
+            .pickerStyle(.segmented)
+            .padding()
+
             Divider()
-                .background(Color.white.opacity(0.1))
-            
-            // Right: Detail
-            if let selected = selectedReflection {
-                ReflectionDetailView(reflection: selected)
+
+            // 탭별 콘텐츠
+            switch selectedTab {
+            case .bottleneck:
+                bottleneckHistoryView
+            case .retrospective:
+                retrospectiveHistoryView
+            }
+        }
+    }
+
+    // MARK: - Bottleneck History View
+    private var bottleneckHistoryView: some View {
+        VStack(spacing: 0) {
+            // 상단 헤더 및 필터
+            headerSection
+
+            // 검색 및 필터
+            filterSection
+
+            // 목록
+            if filteredEntries.isEmpty {
+                emptyState
             } else {
-                emptyDetailView
+                entryList
             }
         }
     }
-    
-    // MARK: - Month Navigator
-    private var monthNavigator: some View {
-        HStack {
-            Button {
-                withAnimation {
-                    selectedMonth = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) ?? selectedMonth
+
+    // MARK: - Retrospective History View
+    private var retrospectiveHistoryView: some View {
+        VStack(spacing: 0) {
+            // 헤더
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("5분 회고 기록")
+                        .font(.title2.bold())
+                        .foregroundStyle(.primary)
+
+                    Text("\(retrospectives.count)개의 회고")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
                 }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.white.opacity(0.05)))
+                Spacer()
             }
-            .buttonStyle(.plain)
-            
-            Spacer()
-            
-            Text(monthYearString)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-            
-            Spacer()
-            
-            Button {
-                withAnimation {
-                    selectedMonth = Calendar.current.date(byAdding: .month, value: 1, to: selectedMonth) ?? selectedMonth
-                }
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-                    .frame(width: 32, height: 32)
-                    .background(Circle().fill(Color.white.opacity(0.05)))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-    }
-    
-    // MARK: - Calendar Grid
-    private var calendarGrid: some View {
-        let calendar = Calendar.current
-        let days = generateDaysInMonth()
-        let weekdays = ["일", "월", "화", "수", "목", "금", "토"]
-        
-        return VStack(spacing: 8) {
-            // Weekday headers
-            HStack(spacing: 0) {
-                ForEach(weekdays, id: \.self) { day in
-                    Text(day)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.4))
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .padding(.horizontal, 12)
-            
-            // Days grid
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
-                ForEach(days, id: \.self) { date in
-                    if let date = date {
-                        let hasReflection = reflections.contains { calendar.isDateInToday($0.date) ? calendar.isDateInToday(date) : calendar.isDate($0.date, inSameDayAs: date) }
-                        let isToday = calendar.isDateInToday(date)
-                        let isSelected = selectedReflection.map { calendar.isDate($0.date, inSameDayAs: date) } ?? false
-                        
-                        Button {
-                            if let reflection = reflections.first(where: { calendar.isDate($0.date, inSameDayAs: date) }) {
-                                selectedReflection = reflection
-                            }
-                        } label: {
-                            Text("\(calendar.component(.day, from: date))")
-                                .font(.system(size: 13, weight: hasReflection ? .semibold : .regular))
-                                .foregroundColor(
-                                    isSelected ? Color(hex: "1a1a2e") :
-                                    isToday ? Color(hex: "818cf8") :
-                                    hasReflection ? .white :
-                                    .white.opacity(0.3)
-                                )
-                                .frame(width: 36, height: 36)
-                                .background(
-                                    Group {
-                                        if isSelected {
-                                            Circle().fill(Color(hex: "818cf8"))
-                                        } else if hasReflection {
-                                            Circle().fill(Color.white.opacity(0.1))
-                                        }
-                                    }
-                                )
+            .padding()
+
+            Divider()
+
+            // 회고 목록
+            if retrospectives.isEmpty {
+                ContentUnavailableView(
+                    "아직 회고가 없습니다",
+                    systemImage: "sparkles",
+                    description: Text("오늘 탭에서 5분 회고를 작성해보세요")
+                )
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(retrospectives) { retro in
+                            RetrospectiveHistoryCard(retrospective: retro)
                         }
-                        .buttonStyle(.plain)
-                    } else {
-                        Color.clear
-                            .frame(width: 36, height: 36)
+                    }
+                    .padding()
+                }
+            }
+        }
+    }
+
+    // MARK: - Header Section
+    private var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("전체 기록")
+                    .font(.title2.bold())
+                    .foregroundStyle(.primary)
+
+                Text("\(filteredEntries.count)개 항목 • 주간 낭비 \(BottleneckEntry.formatMinutes(totalWastedMinutes))")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // 정렬 옵션
+            Menu {
+                ForEach(SortOption.allCases, id: \.self) { option in
+                    Button {
+                        sortOption = option
+                    } label: {
+                        HStack {
+                            Text(option.rawValue)
+                            if sortOption == option {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.up.arrow.down")
+                    Text(sortOption.rawValue)
+                }
+                .font(.body)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color(.controlBackgroundColor))
+                .clipShape(Capsule())
+            }
+            .menuStyle(.borderlessButton)
+        }
+        .padding()
+    }
+
+    // MARK: - Filter Section
+    private var filterSection: some View {
+        VStack(spacing: 12) {
+            // 검색
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+
+                TextField("검색...", text: $searchText)
+                    .textFieldStyle(.plain)
+
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+            .background(Color(.textBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            // 태그 필터
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    // 전체 버튼
+                    FilterChip(
+                        label: "전체",
+                        isSelected: selectedTag == nil,
+                        action: { selectedTag = nil }
+                    )
+
+                    // 점수 필터
+                    Menu {
+                        Button("전체") { filterScore = nil }
+                        ForEach(1...5, id: \.self) { score in
+                            Button("\(score)점 이상") { filterScore = score }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "star.fill")
+                                .font(.body)
+                            Text(filterScore.map { "\($0)+ 점" } ?? "점수")
+                        }
+                        .font(.body)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(filterScore != nil ? Color.yellow.opacity(0.2) : Color(.controlBackgroundColor))
+                        .foregroundStyle(filterScore != nil ? .yellow : .secondary)
+                        .clipShape(Capsule())
+                    }
+                    .menuStyle(.borderlessButton)
+
+                    Divider()
+                        .frame(height: 20)
+
+                    // 태그들
+                    ForEach(allTags, id: \.self) { tag in
+                        FilterChip(
+                            label: "#\(tag)",
+                            isSelected: selectedTag == tag,
+                            action: { selectedTag = selectedTag == tag ? nil : tag }
+                        )
                     }
                 }
             }
-            .padding(.horizontal, 12)
         }
-        .padding(.bottom, 16)
+        .padding(.horizontal)
+        .padding(.bottom, 12)
     }
-    
-    // MARK: - Search Bar
-    private var searchBar: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.white.opacity(0.4))
-            
-            TextField("회고 검색...", text: $searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 14))
-                .foregroundColor(.white)
-        }
-        .padding(12)
-        .background(Color.white.opacity(0.05))
-        .cornerRadius(10)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-    
-    // MARK: - Reflection List
-    private var reflectionList: some View {
+
+    // MARK: - Entry List
+    private var entryList: some View {
         ScrollView {
             LazyVStack(spacing: 8) {
-                ForEach(filteredReflections) { reflection in
-                    ReflectionRowView(
-                        reflection: reflection,
-                        isSelected: selectedReflection?.id == reflection.id
-                    )
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.3)) {
-                            selectedReflection = reflection
+                ForEach(filteredEntries) { entry in
+                    HistoryEntryRow(entry: entry, isSelected: selectedEntry?.id == entry.id)
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedEntry = entry
+                            }
                         }
-                    }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                modelContext.delete(entry)
+                                if selectedEntry?.id == entry.id {
+                                    selectedEntry = nil
+                                }
+                            } label: {
+                                Label("삭제", systemImage: "trash")
+                            }
+                        }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal)
+            .padding(.bottom, 20)
         }
     }
-    
-    // MARK: - Empty Detail
-    private var emptyDetailView: some View {
+
+    // MARK: - Empty State
+    private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 48))
-                .foregroundColor(.white.opacity(0.2))
-            
-            Text("회고를 선택하세요")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(.white.opacity(0.4))
-            
-            Text("왼쪽 목록에서 회고를 클릭하면\n상세 내용을 볼 수 있어요")
-                .font(.system(size: 14))
-                .foregroundColor(.white.opacity(0.25))
-                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary.opacity(0.5))
+
+            Text("검색 결과가 없습니다")
+                .font(.headline)
+                .foregroundStyle(.secondary)
+
+            if !searchText.isEmpty || selectedTag != nil || filterScore != nil {
+                Button("필터 초기화") {
+                    searchText = ""
+                    selectedTag = nil
+                    filterScore = nil
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
-    // MARK: - Helpers
-    private var monthYearString: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ko_KR")
-        formatter.dateFormat = "yyyy년 M월"
-        return formatter.string(from: selectedMonth)
-    }
-    
-    private func generateDaysInMonth() -> [Date?] {
-        let calendar = Calendar.current
-        
-        guard let monthInterval = calendar.dateInterval(of: .month, for: selectedMonth),
-              let monthFirstWeek = calendar.dateInterval(of: .weekOfMonth, for: monthInterval.start) else {
-            return []
+}
+
+// MARK: - Filter Chip
+struct FilterChip: View {
+    let label: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.body)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(isSelected ? Color.blue.opacity(0.3) : Color(.controlBackgroundColor))
+                .foregroundStyle(isSelected ? .blue : .secondary)
+                .clipShape(Capsule())
         }
-        
-        var days: [Date?] = []
-        var current = monthFirstWeek.start
-        
-        while current < monthInterval.end || days.count % 7 != 0 {
-            if current >= monthInterval.start && current < monthInterval.end {
-                days.append(current)
-            } else {
-                days.append(nil)
-            }
-            current = calendar.date(byAdding: .day, value: 1, to: current)!
-        }
-        
-        return days
+        .buttonStyle(.plain)
     }
 }
 
-// MARK: - Row View
-struct ReflectionRowView: View {
-    let reflection: Reflection
+// MARK: - History Entry Row
+struct HistoryEntryRow: View {
+    let entry: BottleneckEntry
     let isSelected: Bool
-    
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(reflection.formattedDate)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(isSelected ? .white : .white.opacity(0.8))
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    moodIndicator
-                    energyIndicator
+        HStack(spacing: 12) {
+            // 날짜
+            VStack(spacing: 2) {
+                Text(entry.shortDate)
+                    .font(.body.bold())
+                Text(dayOfWeek)
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 40)
+
+            // 도구화 점수
+            Text(entry.automationEmoji)
+                .font(.title3)
+
+            // 메인 정보
+            VStack(alignment: .leading, spacing: 4) {
+                Text(entry.taskName)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                HStack(spacing: 8) {
+                    // 시간 정보
+                    Text("\(entry.estimatedMinutes)분→\(entry.actualMinutes)분")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+
+                    if entry.wastedMinutes > 0 {
+                        Text("+\(entry.wastedMinutes)분")
+                            .font(.body.bold())
+                            .foregroundStyle(.red)
+                    }
+
+                    Text("주 \(entry.weeklyFrequency)회")
+                        .font(.body)
+                        .foregroundStyle(.blue)
+                }
+
+                // 태그
+                if !entry.tags.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(entry.tags.prefix(2), id: \.self) { tag in
+                            Text("#\(tag)")
+                                .font(.body)
+                                .foregroundStyle(.purple)
+                        }
+                        if entry.tags.count > 2 {
+                            Text("+\(entry.tags.count - 2)")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
-            
-            if !reflection.wentWell.isEmpty {
-                Text(reflection.wentWell)
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.5))
-                    .lineLimit(2)
+
+            Spacer()
+
+            // ROI
+            VStack(alignment: .trailing, spacing: 2) {
+                Text("ROI")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                Text(String(format: "%.0f", entry.roiScore))
+                    .font(.body.bold().monospacedDigit())
+                    .foregroundStyle(.purple)
             }
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isSelected ? Color(hex: "818cf8").opacity(0.2) : Color.white.opacity(0.03))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isSelected ? Color(hex: "818cf8").opacity(0.5) : Color.clear, lineWidth: 1)
-                )
+        .background(isSelected ? Color.blue.opacity(0.15) : Color(.controlBackgroundColor).opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(isSelected ? Color.blue.opacity(0.4) : Color.clear, lineWidth: 1)
         )
     }
-    
-    private var moodIndicator: some View {
-        Circle()
-            .fill(moodColor)
-            .frame(width: 8, height: 8)
-    }
-    
-    private var energyIndicator: some View {
-        Circle()
-            .fill(energyColor)
-            .frame(width: 8, height: 8)
-    }
-    
-    private var moodColor: Color {
-        switch reflection.moodScore {
-        case 1...2: return Color(hex: "ef4444")
-        case 3: return Color(hex: "fbbf24")
-        case 4...5: return Color(hex: "4ade80")
-        default: return Color(hex: "fbbf24")
-        }
-    }
-    
-    private var energyColor: Color {
-        switch reflection.energyLevel {
-        case 1...2: return Color(hex: "94a3b8")
-        case 3: return Color(hex: "fbbf24")
-        case 4...5: return Color(hex: "818cf8")
-        default: return Color(hex: "fbbf24")
-        }
+
+    private var dayOfWeek: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "E"
+        return formatter.string(from: entry.createdAt)
     }
 }
 
-// MARK: - Detail View
-struct ReflectionDetailView: View {
-    let reflection: Reflection
-    
+// MARK: - Retrospective History Card
+struct RetrospectiveHistoryCard: View {
+    let retrospective: DailyRetrospective
+    @State private var isExpanded = false
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Header
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(reflection.formattedDate)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                    
-                    HStack(spacing: 16) {
-                        Label("기분 \(reflection.moodScore)/5", systemImage: "face.smiling")
-                            .foregroundColor(Color(hex: "818cf8"))
-                        Label("에너지 \(reflection.energyLevel)/5", systemImage: "bolt.fill")
-                            .foregroundColor(Color(hex: "fbbf24"))
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                }
-                .padding(.bottom, 8)
-                
-                // Content sections
-                if !reflection.wentWell.isEmpty {
-                    detailSection(
-                        title: "잘한 것",
-                        icon: "checkmark.circle.fill",
-                        color: Color(hex: "4ade80"),
-                        content: reflection.wentWell
-                    )
-                }
-                
-                if !reflection.couldImprove.isEmpty {
-                    detailSection(
-                        title: "개선할 점",
-                        icon: "arrow.up.circle.fill",
-                        color: Color(hex: "fbbf24"),
-                        content: reflection.couldImprove
-                    )
-                }
-                
-                if !reflection.nextAction.isEmpty {
-                    detailSection(
-                        title: "다음 액션",
-                        icon: "bolt.circle.fill",
-                        color: Color(hex: "818cf8"),
-                        content: reflection.nextAction
-                    )
-                }
-                
-                if !reflection.gratitude.isEmpty {
-                    detailSection(
-                        title: "감사한 것",
-                        icon: "heart.circle.fill",
-                        color: Color(hex: "f472b6"),
-                        content: reflection.gratitude
-                    )
-                }
-                
-                if !reflection.learnings.isEmpty {
-                    detailSection(
-                        title: "배운 것",
-                        icon: "lightbulb.fill",
-                        color: Color(hex: "38bdf8"),
-                        content: reflection.learnings
-                    )
-                }
-            }
-            .padding(32)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-    
-    private func detailSection(title: String, icon: String, color: Color, content: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
+            // 헤더 (날짜 + 토글)
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text(retrospective.formattedDate)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    Spacer()
+
+                    // 완성도 표시
+                    HStack(spacing: 4) {
+                        ForEach(0..<4, id: \.self) { index in
+                            Circle()
+                                .fill(index < retrospective.completionCount ? Color.green : Color.gray.opacity(0.3))
+                                .frame(width: 8, height: 8)
+                        }
+                    }
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
             }
-            
-            Text(content)
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(.white.opacity(0.9))
-                .lineSpacing(6)
+            .buttonStyle(.plain)
+
+            // 미리보기 (접힌 상태)
+            if !isExpanded {
+                HStack(spacing: 16) {
+                    if !retrospective.good.isEmpty {
+                        Label(retrospective.good, systemImage: "face.smiling")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            // 상세 내용 (펼친 상태)
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    if !retrospective.good.isEmpty {
+                        RetrospectiveDetailRow(emoji: "😊", title: "Good", content: retrospective.good)
+                    }
+                    if !retrospective.bad.isEmpty {
+                        RetrospectiveDetailRow(emoji: "😞", title: "Bad", content: retrospective.bad)
+                    }
+                    if !retrospective.ideas.isEmpty {
+                        RetrospectiveDetailRow(emoji: "💡", title: "Ideas", content: retrospective.ideas)
+                    }
+                    if !retrospective.actions.isEmpty {
+                        RetrospectiveDetailRow(emoji: "⚡", title: "Actions", content: retrospective.actions)
+                    }
+                }
+            }
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white.opacity(0.03))
-        )
+        .padding()
+        .background(Color(.controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+struct RetrospectiveDetailRow: View {
+    let emoji: String
+    let title: String
+    let content: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(emoji)
+                .font(.body)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.body.bold())
+                    .foregroundStyle(.secondary)
+                Text(content)
+                    .font(.body)
+                    .foregroundStyle(.primary)
+            }
+        }
     }
 }
 
 #Preview {
-    HistoryView()
-        .modelContainer(for: Reflection.self, inMemory: true)
-        .frame(width: 900, height: 700)
+    HistoryListView(selectedEntry: .constant(nil))
+        .modelContainer(for: [BottleneckEntry.self, DailyRetrospective.self], inMemory: true)
+        .frame(width: 500, height: 700)
 }
