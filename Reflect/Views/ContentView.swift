@@ -152,7 +152,7 @@ struct SidebarView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                        Text("FlowOptimizer")
+                        Text("돌아보기")
                             .font(.system(size: 18, weight: .bold, design: .rounded))
                     }
 

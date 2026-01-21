@@ -49,6 +49,7 @@ struct DailyLogView: View {
     @State private var previousActionsStatus = "none"
     @State private var previousActionsReview = ""
     @State private var previousActionsLoaded = false
+    @State private var isPreviousActionsCollapsed = false
 
     // 목표 입력 필드
     @State private var goalTitle = ""
@@ -68,6 +69,16 @@ struct DailyLogView: View {
 
     private var todayWastedMinutes: Int {
         todayEntries.reduce(0) { $0 + $1.wastedMinutes }
+    }
+
+    // MARK: - 병목 패턴 분석
+    private var recentEntries: [BottleneckEntry] {
+        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
+        return allEntries.filter { $0.createdAt >= weekAgo }
+    }
+
+    private var bottleneckInsights: BottleneckInsights {
+        BottleneckInsights(entries: recentEntries)
     }
 
     var body: some View {
@@ -206,6 +217,11 @@ struct DailyLogView: View {
                 previousActionsReviewSection(yesterdayActions: yesterday.actions)
             }
 
+            // 병목 인사이트 카드 (편집 모드이고, 기록이 있을 때만 표시)
+            if isEditingRetro && bottleneckInsights.hasInsights {
+                BottleneckInsightCard(insights: bottleneckInsights)
+            }
+
             // 오늘 회고 카드
             if isEditingRetro {
                 // 편집 모드: 입력 필드
@@ -223,7 +239,7 @@ struct DailyLogView: View {
                         title: "Bad",
                         subtitle: "아쉬운 것",
                         text: $retroBad,
-                        placeholder: "아쉬웠던 점이나 개선하고 싶은 것을 적어보세요"
+                        placeholder: bottleneckInsights.badPlaceholder
                     )
 
                     RetrospectiveInputRow(
@@ -231,7 +247,7 @@ struct DailyLogView: View {
                         title: "Ideas",
                         subtitle: "개선 아이디어",
                         text: $retroIdeas,
-                        placeholder: "떠오른 아이디어나 시도해보고 싶은 것을 적어보세요"
+                        placeholder: bottleneckInsights.ideasPlaceholder
                     )
 
                     RetrospectiveInputRow(
@@ -239,7 +255,7 @@ struct DailyLogView: View {
                         title: "Actions",
                         subtitle: "당장 실행할 것",
                         text: $retroActions,
-                        placeholder: "내일 바로 실행할 수 있는 작은 액션을 적어보세요"
+                        placeholder: bottleneckInsights.actionsPlaceholder
                     )
                 }
                 .padding()
@@ -270,92 +286,161 @@ struct DailyLogView: View {
     }
 
     // MARK: - Previous Actions Review Section
+    private var hasPreviousActionsReview: Bool {
+        previousActionsStatus != "none"
+    }
+
+    private var statusIcon: String {
+        switch previousActionsStatus {
+        case "completed": return "checkmark.circle.fill"
+        case "partial": return "circle.lefthalf.filled"
+        case "skipped": return "xmark.circle.fill"
+        default: return "circle"
+        }
+    }
+
+    private var statusColor: Color {
+        switch previousActionsStatus {
+        case "completed": return .green
+        case "partial": return .orange
+        case "skipped": return .red
+        default: return .secondary
+        }
+    }
+
+    private var statusText: String {
+        switch previousActionsStatus {
+        case "completed": return "완료"
+        case "partial": return "부분 완료"
+        case "skipped": return "미완료"
+        default: return ""
+        }
+    }
+
     private func previousActionsReviewSection(yesterdayActions: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            // 헤더
+            // 헤더 (항상 표시, 클릭으로 토글)
             HStack {
                 Image(systemName: "arrow.uturn.backward.circle.fill")
                     .foregroundStyle(.orange)
                 Text("어제의 액션 돌아보기")
                     .font(.body.bold())
                     .foregroundStyle(.primary)
-            }
 
-            // 어제 작성한 액션
-            VStack(alignment: .leading, spacing: 8) {
-                Text("어제 계획한 액션:")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                Text(yesterdayActions)
-                    .font(.body)
-                    .foregroundStyle(.primary)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.textBackgroundColor).opacity(0.5))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
+                Spacer()
 
-            // 완료 상태 선택
-            VStack(alignment: .leading, spacing: 8) {
-                Text("실행 결과:")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-
-                HStack(spacing: 8) {
-                    PreviousActionStatusButton(
-                        title: "완료",
-                        icon: "checkmark.circle.fill",
-                        color: .green,
-                        isSelected: previousActionsStatus == "completed"
-                    ) {
-                        previousActionsStatus = "completed"
+                // 접힌 상태에서 상태 표시
+                if isPreviousActionsCollapsed && hasPreviousActionsReview {
+                    HStack(spacing: 4) {
+                        Image(systemName: statusIcon)
+                            .foregroundStyle(statusColor)
+                        Text(statusText)
+                            .font(.body)
+                            .foregroundStyle(statusColor)
                     }
+                }
 
-                    PreviousActionStatusButton(
-                        title: "부분 완료",
-                        icon: "circle.lefthalf.filled",
-                        color: .orange,
-                        isSelected: previousActionsStatus == "partial"
-                    ) {
-                        previousActionsStatus = "partial"
+                // 토글 버튼
+                if hasPreviousActionsReview {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isPreviousActionsCollapsed.toggle()
+                        }
+                    } label: {
+                        Image(systemName: isPreviousActionsCollapsed ? "chevron.down" : "chevron.up")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
                     }
-
-                    PreviousActionStatusButton(
-                        title: "미완료",
-                        icon: "xmark.circle.fill",
-                        color: .red,
-                        isSelected: previousActionsStatus == "skipped"
-                    ) {
-                        previousActionsStatus = "skipped"
+                    .buttonStyle(.plain)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if hasPreviousActionsReview {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isPreviousActionsCollapsed.toggle()
                     }
                 }
             }
 
-            // 회고 코멘트
-            if previousActionsStatus != "none" {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(previousActionsStatus == "completed" ? "잘했어요! 어떻게 완료했나요?" :
-                         previousActionsStatus == "partial" ? "어디까지 진행했나요?" :
-                         "무엇이 방해가 되었나요?")
+            // 내용 (접히지 않은 경우에만 표시)
+            if !isPreviousActionsCollapsed {
+                // 어제 작성한 액션
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("어제 계획한 액션:")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                    Text(yesterdayActions)
+                        .font(.body)
+                        .foregroundStyle(.primary)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.textBackgroundColor).opacity(0.5))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+
+                // 완료 상태 선택
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("실행 결과:")
                         .font(.body)
                         .foregroundStyle(.secondary)
 
-                    TextField("짧게 회고를 남겨보세요", text: $previousActionsReview, axis: .vertical)
-                        .textFieldStyle(.plain)
-                        .font(.body)
-                        .lineLimit(1...3)
-                        .padding(8)
-                        .background(Color(.textBackgroundColor))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    HStack(spacing: 8) {
+                        PreviousActionStatusButton(
+                            title: "완료",
+                            icon: "checkmark.circle.fill",
+                            color: .green,
+                            isSelected: previousActionsStatus == "completed"
+                        ) {
+                            previousActionsStatus = "completed"
+                        }
+
+                        PreviousActionStatusButton(
+                            title: "부분 완료",
+                            icon: "circle.lefthalf.filled",
+                            color: .orange,
+                            isSelected: previousActionsStatus == "partial"
+                        ) {
+                            previousActionsStatus = "partial"
+                        }
+
+                        PreviousActionStatusButton(
+                            title: "미완료",
+                            icon: "xmark.circle.fill",
+                            color: .red,
+                            isSelected: previousActionsStatus == "skipped"
+                        ) {
+                            previousActionsStatus = "skipped"
+                        }
+                    }
+                }
+
+                // 회고 코멘트
+                if previousActionsStatus != "none" {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(previousActionsStatus == "completed" ? "잘했어요! 어떻게 완료했나요?" :
+                             previousActionsStatus == "partial" ? "어디까지 진행했나요?" :
+                             "무엇이 방해가 되었나요?")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+
+                        TextField("짧게 회고를 남겨보세요", text: $previousActionsReview, axis: .vertical)
+                            .textFieldStyle(.plain)
+                            .font(.body)
+                            .lineLimit(1...3)
+                            .padding(8)
+                            .background(Color(.textBackgroundColor))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
                 }
             }
         }
         .padding()
-        .background(Color.orange.opacity(0.1))
+        .background(Color.orange.opacity(isPreviousActionsCollapsed ? 0.05 : 0.1))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(Color.orange.opacity(0.3), lineWidth: 1)
+                .strokeBorder(Color.orange.opacity(isPreviousActionsCollapsed ? 0.15 : 0.3), lineWidth: 1)
         )
     }
 
@@ -389,6 +474,10 @@ struct DailyLogView: View {
             previousActionsStatus = retro.previousActionsStatus
             previousActionsReview = retro.previousActionsReview
             previousActionsLoaded = true
+            // 이미 작성된 리뷰가 있으면 접힌 상태로 시작
+            if retro.previousActionsStatus != "none" {
+                isPreviousActionsCollapsed = true
+            }
         }
     }
 
@@ -411,6 +500,13 @@ struct DailyLogView: View {
 
         retroLoaded = true
         previousActionsLoaded = true
+
+        // 어제 액션 리뷰가 작성되었으면 자동으로 접기
+        if previousActionsStatus != "none" {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isPreviousActionsCollapsed = true
+            }
+        }
     }
 
     // MARK: - Goals Section
@@ -1208,6 +1304,234 @@ struct RetrospectiveReadOnlyRow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+}
+
+// MARK: - 병목 패턴 분석
+struct BottleneckInsights {
+    let entries: [BottleneckEntry]
+
+    // 인사이트가 있는지 (최소 1개 이상의 기록)
+    var hasInsights: Bool {
+        !entries.isEmpty
+    }
+
+    // 총 낭비 시간
+    var totalWastedMinutes: Int {
+        entries.reduce(0) { $0 + $1.wastedMinutes }
+    }
+
+    // 가장 많이 반복되는 태그 (상위 3개)
+    var topTags: [(tag: String, count: Int)] {
+        var tagCounts: [String: Int] = [:]
+        for entry in entries {
+            for tag in entry.tags {
+                tagCounts[tag, default: 0] += 1
+            }
+        }
+        return tagCounts.sorted { $0.value > $1.value }
+            .prefix(3)
+            .map { (tag: $0.key, count: $0.value) }
+    }
+
+    // 가장 많은 시간 낭비한 작업
+    var mostWastedTask: BottleneckEntry? {
+        entries.max(by: { $0.wastedMinutes < $1.wastedMinutes })
+    }
+
+    // ROI 가장 높은 항목 (자동화 우선순위)
+    var highestROITask: BottleneckEntry? {
+        entries.max(by: { $0.roiScore < $1.roiScore })
+    }
+
+    // 자동화 점수 4-5인 항목 개수
+    var highAutomationCount: Int {
+        entries.filter { $0.automationScore >= 4 }.count
+    }
+
+    // 반복적으로 발생하는 패턴 (같은 태그가 3번 이상)
+    var repeatingPatterns: [String] {
+        topTags.filter { $0.count >= 3 }.map { $0.tag }
+    }
+
+    // 주요 지연 원인 키워드
+    var commonDelayReasons: [String] {
+        let reasons = entries.compactMap { $0.delayReason.isEmpty ? nil : $0.delayReason }
+        // 간단한 키워드 추출 (3글자 이상 단어)
+        var keywords: [String: Int] = [:]
+        for reason in reasons {
+            let words = reason.components(separatedBy: .whitespaces)
+            for word in words where word.count >= 3 {
+                keywords[word, default: 0] += 1
+            }
+        }
+        return keywords.filter { $0.value >= 2 }
+            .sorted { $0.value > $1.value }
+            .prefix(3)
+            .map { $0.key }
+    }
+
+    // Bad 섹션 플레이스홀더 (동적)
+    var badPlaceholder: String {
+        if let task = mostWastedTask, task.wastedMinutes > 30 {
+            return "예: '\(task.taskName)'에서 \(task.wastedMinutes)분 낭비"
+        }
+        if !topTags.isEmpty {
+            return "예: #\(topTags[0].tag) 관련 작업이 또 오래 걸림"
+        }
+        return "아쉬웠던 점이나 개선하고 싶은 것을 적어보세요"
+    }
+
+    // Ideas 섹션 플레이스홀더 (동적)
+    var ideasPlaceholder: String {
+        if let task = highestROITask, task.roiScore > 100 {
+            return "예: '\(task.taskName)' 자동화하면 주당 \(task.weeklyWastedMinutes)분 절약"
+        }
+        if highAutomationCount > 0 {
+            return "자동화 가능성 높은 작업 \(highAutomationCount)개 발견"
+        }
+        return "떠오른 아이디어나 시도해보고 싶은 것을 적어보세요"
+    }
+
+    // Actions 섹션 플레이스홀더 (동적)
+    var actionsPlaceholder: String {
+        if !repeatingPatterns.isEmpty {
+            return "예: #\(repeatingPatterns[0]) 작업 프로세스 개선하기"
+        }
+        if let task = highestROITask {
+            return "예: '\(task.taskName)' 자동화 방법 조사하기"
+        }
+        return "내일 바로 실행할 수 있는 작은 액션을 적어보세요"
+    }
+
+    // 인사이트 메시지 (최대 3개)
+    var insightMessages: [InsightMessage] {
+        var messages: [InsightMessage] = []
+
+        // 1. 반복 패턴 감지
+        if !repeatingPatterns.isEmpty {
+            messages.append(InsightMessage(
+                icon: "repeat",
+                color: .purple,
+                text: "#\(repeatingPatterns.joined(separator: ", #")) 관련 작업이 자주 발생해요"
+            ))
+        }
+
+        // 2. 자동화 추천
+        if let task = highestROITask, task.roiScore > 50 {
+            messages.append(InsightMessage(
+                icon: "wand.and.stars",
+                color: .orange,
+                text: "'\(task.taskName)' 자동화 시 주당 \(BottleneckEntry.formatMinutes(task.weeklyWastedMinutes)) 절약 가능"
+            ))
+        }
+
+        // 3. 시간 낭비 경고
+        if totalWastedMinutes > 60 {
+            messages.append(InsightMessage(
+                icon: "clock.badge.exclamationmark",
+                color: .red,
+                text: "이번 주 총 \(BottleneckEntry.formatMinutes(totalWastedMinutes)) 낭비"
+            ))
+        }
+
+        // 4. 자동화 점수 높은 항목 알림
+        if highAutomationCount >= 2 && messages.count < 3 {
+            messages.append(InsightMessage(
+                icon: "gearshape.2",
+                color: .blue,
+                text: "자동화 가능성 높은 작업 \(highAutomationCount)개 대기 중"
+            ))
+        }
+
+        return Array(messages.prefix(3))
+    }
+}
+
+struct InsightMessage: Identifiable {
+    let id = UUID()
+    let icon: String
+    let color: Color
+    let text: String
+}
+
+// MARK: - 병목 인사이트 카드 View
+struct BottleneckInsightCard: View {
+    let insights: BottleneckInsights
+    @State private var isExpanded = true
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // 헤더
+            HStack {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundStyle(.yellow)
+                Text("이번 주 병목 패턴")
+                    .font(.body.bold())
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                    }
+                } label: {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            }
+
+            if isExpanded {
+                // 인사이트 메시지들
+                ForEach(insights.insightMessages) { message in
+                    HStack(spacing: 8) {
+                        Image(systemName: message.icon)
+                            .font(.body)
+                            .foregroundStyle(message.color)
+                            .frame(width: 20)
+
+                        Text(message.text)
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                // 상위 태그
+                if !insights.topTags.isEmpty {
+                    HStack(spacing: 6) {
+                        Text("자주 나오는 태그:")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+
+                        ForEach(insights.topTags, id: \.tag) { item in
+                            Text("#\(item.tag)")
+                                .font(.body)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.purple.opacity(0.2))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .background(Color.yellow.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.yellow.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
