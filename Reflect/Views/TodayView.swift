@@ -42,6 +42,7 @@ struct DailyLogView: View {
     @State private var retroBad = ""
     @State private var retroIdeas = ""
     @State private var retroActions = ""
+    @State private var retroEnergyLevel = 3
     @State private var retroLoaded = false
     @State private var isRetroEditMode = false
 
@@ -226,6 +227,11 @@ struct DailyLogView: View {
             if isEditingRetro {
                 // 편집 모드: 입력 필드
                 VStack(spacing: 12) {
+                    // 에너지 레벨
+                    EnergyLevelSelector(energyLevel: $retroEnergyLevel)
+
+                    Divider()
+
                     RetrospectiveInputRow(
                         emoji: "😊",
                         title: "Good",
@@ -265,6 +271,11 @@ struct DailyLogView: View {
                 // 읽기 모드: 저장된 내용 표시
                 VStack(spacing: 10) {
                     if let retro = todayRetrospective {
+                        // 에너지 레벨 표시
+                        EnergyLevelDisplay(energyLevel: retro.energyLevel)
+
+                        Divider()
+
                         RetrospectiveReadOnlyRow(emoji: "😊", title: "Good", content: retro.good)
                         RetrospectiveReadOnlyRow(emoji: "😞", title: "Bad", content: retro.bad)
                         RetrospectiveReadOnlyRow(emoji: "💡", title: "Ideas", content: retro.ideas)
@@ -449,7 +460,8 @@ struct DailyLogView: View {
         let contentChanged = retroGood != (current?.good ?? "") ||
                retroBad != (current?.bad ?? "") ||
                retroIdeas != (current?.ideas ?? "") ||
-               retroActions != (current?.actions ?? "")
+               retroActions != (current?.actions ?? "") ||
+               retroEnergyLevel != (current?.energyLevel ?? 3)
 
         let previousActionsChanged = previousActionsStatus != (current?.previousActionsStatus ?? "none") ||
                previousActionsReview != (current?.previousActionsReview ?? "")
@@ -464,6 +476,7 @@ struct DailyLogView: View {
             retroBad = retro.bad
             retroIdeas = retro.ideas
             retroActions = retro.actions
+            retroEnergyLevel = retro.energyLevel
             retroLoaded = true
         }
     }
@@ -494,6 +507,7 @@ struct DailyLogView: View {
         retro.bad = retroBad
         retro.ideas = retroIdeas
         retro.actions = retroActions
+        retro.energyLevel = retroEnergyLevel
         retro.previousActionsStatus = previousActionsStatus
         retro.previousActionsReview = previousActionsReview
         retro.updatedAt = Date()
@@ -1303,6 +1317,120 @@ struct RetrospectiveReadOnlyRow: View {
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+    }
+}
+
+// MARK: - Energy Level Selector
+struct EnergyLevelSelector: View {
+    @Binding var energyLevel: Int
+
+    private let levels = [
+        (level: 1, emoji: "😫", text: "매우 낮음", color: Color.red),
+        (level: 2, emoji: "😔", text: "낮음", color: Color.orange),
+        (level: 3, emoji: "😐", text: "보통", color: Color.yellow),
+        (level: 4, emoji: "😊", text: "좋음", color: Color.green),
+        (level: 5, emoji: "🔥", text: "최고", color: Color.blue)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "bolt.fill")
+                    .foregroundStyle(.yellow)
+                Text("오늘의 에너지")
+                    .font(.body.bold())
+                Spacer()
+                Text(levels[energyLevel - 1].text)
+                    .font(.body)
+                    .foregroundStyle(levels[energyLevel - 1].color)
+            }
+
+            HStack(spacing: 8) {
+                ForEach(levels, id: \.level) { item in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            energyLevel = item.level
+                        }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(item.emoji)
+                                .font(.title2)
+                            Text("\(item.level)")
+                                .font(.body.bold())
+                                .foregroundStyle(energyLevel == item.level ? item.color : .secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(energyLevel == item.level ? item.color.opacity(0.2) : Color.clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .strokeBorder(energyLevel == item.level ? item.color : Color.clear, lineWidth: 2)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Energy Level Display (읽기 전용)
+struct EnergyLevelDisplay: View {
+    let energyLevel: Int
+
+    private var emoji: String {
+        switch energyLevel {
+        case 1: return "😫"
+        case 2: return "😔"
+        case 3: return "😐"
+        case 4: return "😊"
+        case 5: return "🔥"
+        default: return "😐"
+        }
+    }
+
+    private var text: String {
+        switch energyLevel {
+        case 1: return "매우 낮음"
+        case 2: return "낮음"
+        case 3: return "보통"
+        case 4: return "좋음"
+        case 5: return "최고"
+        default: return "보통"
+        }
+    }
+
+    private var color: Color {
+        switch energyLevel {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .yellow
+        case 4: return .green
+        case 5: return .blue
+        default: return .gray
+        }
+    }
+
+    var body: some View {
+        HStack {
+            Image(systemName: "bolt.fill")
+                .foregroundStyle(.yellow)
+            Text("오늘의 에너지")
+                .font(.body.bold())
+            Spacer()
+            HStack(spacing: 6) {
+                Text(emoji)
+                    .font(.title3)
+                Text(text)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(color)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(color.opacity(0.15))
+            .clipShape(Capsule())
         }
     }
 }

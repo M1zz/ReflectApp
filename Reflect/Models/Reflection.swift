@@ -369,6 +369,9 @@ final class DailyRetrospective {
     var createdAt: Date
     var updatedAt: Date
 
+    // MARK: - 에너지 레벨
+    var energyLevel: Int                   // 1-5 (1: 매우 낮음, 5: 매우 높음)
+
     // MARK: - 어제 액션 리뷰
     var previousActionsStatus: String      // none, completed, partial, skipped
     var previousActionsReview: String      // 어제 액션에 대한 회고/코멘트
@@ -382,6 +385,7 @@ final class DailyRetrospective {
         actions: String = "",
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
+        energyLevel: Int = 3,
         previousActionsStatus: String = "none",
         previousActionsReview: String = ""
     ) {
@@ -393,6 +397,7 @@ final class DailyRetrospective {
         self.actions = actions
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.energyLevel = energyLevel
         self.previousActionsStatus = previousActionsStatus
         self.previousActionsReview = previousActionsReview
     }
@@ -458,6 +463,42 @@ final class DailyRetrospective {
     /// 어제 액션 리뷰 완료 여부
     var hasPreviousActionsReview: Bool {
         previousActionsStatus != "none"
+    }
+
+    /// 에너지 레벨 이모지
+    var energyEmoji: String {
+        switch energyLevel {
+        case 1: return "😫"
+        case 2: return "😔"
+        case 3: return "😐"
+        case 4: return "😊"
+        case 5: return "🔥"
+        default: return "😐"
+        }
+    }
+
+    /// 에너지 레벨 텍스트
+    var energyText: String {
+        switch energyLevel {
+        case 1: return "매우 낮음"
+        case 2: return "낮음"
+        case 3: return "보통"
+        case 4: return "좋음"
+        case 5: return "최고"
+        default: return "보통"
+        }
+    }
+
+    /// 에너지 레벨 색상
+    var energyColor: String {
+        switch energyLevel {
+        case 1: return "red"
+        case 2: return "orange"
+        case 3: return "yellow"
+        case 4: return "green"
+        case 5: return "blue"
+        default: return "gray"
+        }
     }
 }
 

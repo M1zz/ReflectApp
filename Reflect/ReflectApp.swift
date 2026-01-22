@@ -14,24 +14,38 @@ struct ReflectApp: App {
             Goal.self,
             DailyRetrospective.self,
         ])
+
+        // CloudKit 연동 설정
         let modelConfiguration = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: false
+            isStoredInMemoryOnly: false,
+            cloudKitDatabase: .private("iCloud.com.reflect.app")
         )
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
-            // 마이그레이션 실패 로그
-            print("⚠️ ModelContainer 생성 실패: \(error)")
-            print("💡 설정 > 모든 데이터 삭제로 해결하거나, 앱을 재설치하세요.")
+            // 마이그레이션 실패 시 로컬 전용으로 시도
+            print("⚠️ CloudKit ModelContainer 생성 실패: \(error)")
+            print("💡 로컬 저장소로 전환합니다.")
 
-            // 임시로 메모리에서 실행 (데이터 저장 안됨)
-            let tempConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            let localConfig = ModelConfiguration(
+                schema: schema,
+                isStoredInMemoryOnly: false,
+                cloudKitDatabase: .none
+            )
+
             do {
-                return try ModelContainer(for: schema, configurations: [tempConfig])
+                return try ModelContainer(for: schema, configurations: [localConfig])
             } catch {
-                fatalError("Could not create ModelContainer: \(error)")
+                print("⚠️ 로컬 ModelContainer도 실패: \(error)")
+                // 마지막 시도: 메모리에서 실행
+                let tempConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                do {
+                    return try ModelContainer(for: schema, configurations: [tempConfig])
+                } catch {
+                    fatalError("Could not create ModelContainer: \(error)")
+                }
             }
         }
     }()

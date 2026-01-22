@@ -439,7 +439,20 @@ struct HistoryEntryRow: View {
 // MARK: - Retrospective History Card
 struct RetrospectiveHistoryCard: View {
     let retrospective: DailyRetrospective
+    @Environment(\.modelContext) private var modelContext
     @State private var isExpanded = false
+    @State private var isEditing = false
+
+    private var energyColor: Color {
+        switch retrospective.energyLevel {
+        case 1: return .red
+        case 2: return .orange
+        case 3: return .yellow
+        case 4: return .green
+        case 5: return .blue
+        default: return .gray
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -453,6 +466,10 @@ struct RetrospectiveHistoryCard: View {
                     Text(retrospective.formattedDate)
                         .font(.headline)
                         .foregroundStyle(.primary)
+
+                    // 에너지 레벨 배지
+                    Text(retrospective.energyEmoji)
+                        .font(.body)
 
                     Spacer()
 
@@ -487,6 +504,21 @@ struct RetrospectiveHistoryCard: View {
             // 상세 내용 (펼친 상태)
             if isExpanded {
                 VStack(alignment: .leading, spacing: 10) {
+                    // 에너지 레벨
+                    HStack {
+                        Image(systemName: "bolt.fill")
+                            .foregroundStyle(.yellow)
+                        Text("에너지")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                        Text(retrospective.energyEmoji)
+                        Text(retrospective.energyText)
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(energyColor)
+                    }
+
+                    Divider()
+
                     if !retrospective.good.isEmpty {
                         RetrospectiveDetailRow(emoji: "😊", title: "Good", content: retrospective.good)
                     }
@@ -499,12 +531,139 @@ struct RetrospectiveHistoryCard: View {
                     if !retrospective.actions.isEmpty {
                         RetrospectiveDetailRow(emoji: "⚡", title: "Actions", content: retrospective.actions)
                     }
+
+                    Divider()
+
+                    // 수정/삭제 버튼
+                    HStack {
+                        Button {
+                            isEditing = true
+                        } label: {
+                            Label("수정", systemImage: "pencil")
+                                .font(.body)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Spacer()
+
+                        Button(role: .destructive) {
+                            modelContext.delete(retrospective)
+                        } label: {
+                            Label("삭제", systemImage: "trash")
+                                .font(.body)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.red)
+                    }
                 }
             }
         }
         .padding()
         .background(Color(.controlBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $isEditing) {
+            EditRetrospectiveSheet(retrospective: retrospective)
+        }
+    }
+}
+
+// MARK: - Edit Retrospective Sheet
+struct EditRetrospectiveSheet: View {
+    let retrospective: DailyRetrospective
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var good: String
+    @State private var bad: String
+    @State private var ideas: String
+    @State private var actions: String
+    @State private var energyLevel: Int
+
+    init(retrospective: DailyRetrospective) {
+        self.retrospective = retrospective
+        _good = State(initialValue: retrospective.good)
+        _bad = State(initialValue: retrospective.bad)
+        _ideas = State(initialValue: retrospective.ideas)
+        _actions = State(initialValue: retrospective.actions)
+        _energyLevel = State(initialValue: retrospective.energyLevel)
+    }
+
+    private let levels = [
+        (level: 1, emoji: "😫", text: "매우 낮음", color: Color.red),
+        (level: 2, emoji: "😔", text: "낮음", color: Color.orange),
+        (level: 3, emoji: "😐", text: "보통", color: Color.yellow),
+        (level: 4, emoji: "😊", text: "좋음", color: Color.green),
+        (level: 5, emoji: "🔥", text: "최고", color: Color.blue)
+    ]
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("에너지 레벨") {
+                    HStack(spacing: 8) {
+                        ForEach(levels, id: \.level) { item in
+                            Button {
+                                energyLevel = item.level
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Text(item.emoji)
+                                        .font(.title2)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(energyLevel == item.level ? item.color.opacity(0.2) : Color.clear)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .strokeBorder(energyLevel == item.level ? item.color : Color.clear, lineWidth: 2)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                Section("😊 Good - 잘된 것") {
+                    TextField("오늘 잘한 일이나 좋았던 점", text: $good, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+
+                Section("😞 Bad - 아쉬운 것") {
+                    TextField("아쉬웠던 점이나 개선하고 싶은 것", text: $bad, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+
+                Section("💡 Ideas - 개선 아이디어") {
+                    TextField("떠오른 아이디어나 시도해보고 싶은 것", text: $ideas, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+
+                Section("⚡ Actions - 당장 실행할 것") {
+                    TextField("바로 실행할 수 있는 작은 액션", text: $actions, axis: .vertical)
+                        .lineLimit(2...5)
+                }
+            }
+            .formStyle(.grouped)
+            .navigationTitle(retrospective.formattedDate)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("저장") { saveChanges() }
+                }
+            }
+        }
+        .frame(minWidth: 500, minHeight: 600)
+    }
+
+    private func saveChanges() {
+        retrospective.good = good
+        retrospective.bad = bad
+        retrospective.ideas = ideas
+        retrospective.actions = actions
+        retrospective.energyLevel = energyLevel
+        retrospective.updatedAt = Date()
+        dismiss()
     }
 }
 
