@@ -1,0 +1,294 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		AAA00001 /* RetroScopeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00001 /* RetroScopeApp.swift */; };
+		AAA00002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00002 /* ContentView.swift */; };
+		AAA00003 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00003 /* Models.swift */; };
+		AAA00004 /* ReflectionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00004 /* ReflectionStore.swift */; };
+		AAA00005 /* WriteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00005 /* WriteView.swift */; };
+		AAA00006 /* PatternView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00006 /* PatternView.swift */; };
+		AAA00007 /* TimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00007 /* TimelineView.swift */; };
+		AAA00008 /* InsightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00008 /* InsightView.swift */; };
+		AAA00009 /* PatternEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00009 /* PatternEngine.swift */; };
+		AAA00010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BBB00010 /* Assets.xcassets */; };
+		AAA00011 /* ChartViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBB00011 /* ChartViews.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		BBB00001 /* RetroScopeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RetroScopeApp.swift; sourceTree = "<group>"; };
+		BBB00002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		BBB00003 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		BBB00004 /* ReflectionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReflectionStore.swift; sourceTree = "<group>"; };
+		BBB00005 /* WriteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WriteView.swift; sourceTree = "<group>"; };
+		BBB00006 /* PatternView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternView.swift; sourceTree = "<group>"; };
+		BBB00007 /* TimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineView.swift; sourceTree = "<group>"; };
+		BBB00008 /* InsightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightView.swift; sourceTree = "<group>"; };
+		BBB00009 /* PatternEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatternEngine.swift; sourceTree = "<group>"; };
+		BBB00010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		BBB00011 /* ChartViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartViews.swift; sourceTree = "<group>"; };
+		CCC00001 /* RetroScope.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RetroScope.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DDD00001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		EEE00001 = {
+			isa = PBXGroup;
+			children = (
+				EEE00002 /* RetroScope */,
+				EEE00003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		EEE00002 /* RetroScope */ = {
+			isa = PBXGroup;
+			children = (
+				BBB00001 /* RetroScopeApp.swift */,
+				BBB00002 /* ContentView.swift */,
+				BBB00003 /* Models.swift */,
+				BBB00004 /* ReflectionStore.swift */,
+				BBB00005 /* WriteView.swift */,
+				BBB00006 /* PatternView.swift */,
+				BBB00007 /* TimelineView.swift */,
+				BBB00008 /* InsightView.swift */,
+				BBB00009 /* PatternEngine.swift */,
+				BBB00011 /* ChartViews.swift */,
+				BBB00010 /* Assets.xcassets */,
+			);
+			path = RetroScope;
+			sourceTree = "<group>";
+		};
+		EEE00003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CCC00001 /* RetroScope.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FFF00001 /* RetroScope */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = GGG00003 /* Build configuration list for PBXNativeTarget "RetroScope" */;
+			buildPhases = (
+				HHH00001 /* Sources */,
+				DDD00001 /* Frameworks */,
+				III00001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RetroScope;
+			productName = RetroScope;
+			productReference = CCC00001 /* RetroScope.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		JJJ00001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					FFF00001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = GGG00001 /* Build configuration list for PBXProject "RetroScope" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ko;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				ko,
+				Base,
+			);
+			mainGroup = EEE00001;
+			productRefGroup = EEE00003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FFF00001 /* RetroScope */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		III00001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAA00010 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		HHH00001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAA00001 /* RetroScopeApp.swift in Sources */,
+				AAA00002 /* ContentView.swift in Sources */,
+				AAA00003 /* Models.swift in Sources */,
+				AAA00004 /* ReflectionStore.swift in Sources */,
+				AAA00005 /* WriteView.swift in Sources */,
+				AAA00006 /* PatternView.swift in Sources */,
+				AAA00007 /* TimelineView.swift in Sources */,
+				AAA00008 /* InsightView.swift in Sources */,
+				AAA00009 /* PatternEngine.swift in Sources */,
+				AAA00011 /* ChartViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		GGG00004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		GGG00005 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		GGG00006 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QGAQ3AY3R3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.retroscope.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		GGG00007 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = "";
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = QGAQ3AY3R3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.retroscope.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		GGG00001 /* Build configuration list for PBXProject "RetroScope" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				GGG00004 /* Debug */,
+				GGG00005 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		GGG00003 /* Build configuration list for PBXNativeTarget "RetroScope" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				GGG00006 /* Debug */,
+				GGG00007 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = JJJ00001 /* Project object */;
+}
